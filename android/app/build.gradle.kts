@@ -53,7 +53,11 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     androidResources { noCompress += "task" }
-    packaging { jniLibs { useLegacyPackaging = false } }
+    // Compressed native libraries keep the APK small enough to pass around easily.
+    packaging {
+        jniLibs { useLegacyPackaging = true }
+        dex { useLegacyPackaging = true }
+    }
 }
 
 // The face model (MediaPipe Face Landmarker, Apache 2.0) is downloaded at build time.
