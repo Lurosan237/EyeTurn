@@ -1,0 +1,5 @@
+mediapipe>=1.1
+opencv-python>=4.8
+numpy>=1.26
+pynput>=1.7
+ai-edge-litert>=2.3
