@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EyeTurn</string>
+    <string name="a11y_description">Lets EyeTurn turn pages and scroll in your reading apps when you glance past the edge of the screen or tip your head. EyeTurn only sends scroll and swipe gestures. It doesn\'t read or store what is on your screen, and the camera images never leave your phone.</string>
+</resources>
