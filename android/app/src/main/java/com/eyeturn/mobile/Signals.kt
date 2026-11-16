@@ -22,18 +22,14 @@ data class Signals(
 )
 
 /**
- * What calibration measured: the values while looking at the middle of the
- * screen, while glancing past each side of the phone, and with the head
- * tipped down / turned right.
+ * What calibration measured: the eyes while looking at the middle of the
+ * screen and while glancing past each side of the phone. Only Eyes mode needs
+ * it; Head mode works without calibration, like on the PC.
  */
 data class Calibration(
     val eyeX0: Float,
     val eyeRight: Float,
     val eyeLeft: Float,
-    val yaw0: Float,
-    val yawRight: Float,
-    val pitch0: Float,
-    val pitchDown: Float,
 ) {
     /** Glance: 0 = middle of the screen, +1 = as far right as the calibration glance, -1 = as far left. */
     fun glance(eyeX: Float): Float {
@@ -47,18 +43,6 @@ data class Calibration(
         }
     }
 
-    /** Head turn from a neutral yaw: +1 = as far right as in calibration. */
-    fun turn(yaw: Float, neutral: Float): Float {
-        val r = yawRight - yaw0
-        return if (abs(r) < 1e-3f) 0f else (yaw - neutral) / r
-    }
-
-    /** Head tip from a neutral pitch: +1 = as far down as in calibration. */
-    fun tip(pitch: Float, neutral: Float): Float {
-        val d = pitchDown - pitch0
-        return if (abs(d) < 1e-3f) 0f else (pitch - neutral) / d
-    }
-
     /** Checks the calibration is usable. Returns a problem to show, or null when it's fine. */
     fun problem(): String? {
         val r = eyeRight - eyeX0
@@ -68,16 +52,11 @@ data class Calibration(
                 "Your glances were too small to tell apart. Try again and look clearly past the edge of the phone."
             r * l > 0f ->
                 "The left and right glances looked the same. Try again, moving only your eyes."
-            abs(pitchDown - pitch0) < MIN_HEAD_DEG ->
-                "Tip your head down a bit more next time."
-            abs(yawRight - yaw0) < MIN_HEAD_DEG ->
-                "Turn your head to the right a bit more next time."
             else -> null
         }
     }
 
     companion object {
         const val MIN_EYE = 0.06f
-        const val MIN_HEAD_DEG = 3f
     }
 }

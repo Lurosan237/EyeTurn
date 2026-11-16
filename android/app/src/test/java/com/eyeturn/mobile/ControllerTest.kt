@@ -8,8 +8,7 @@ import kotlin.math.sin
 /** Simulated faces: checks the glance and head rules turn pages only when meant to. */
 class ControllerTest {
     // Glancing right makes eyeX go negative here, to check calibration learns the sign.
-    private val cal = Calibration(eyeX0 = 0f, eyeRight = -0.5f, eyeLeft = 0.45f,
-        yaw0 = 0f, yawRight = -15f, pitch0 = 2f, pitchDown = 12f)
+    private val cal = Calibration(eyeX0 = 0f, eyeRight = -0.5f, eyeLeft = 0.45f)
 
     private class Recorder : Actions {
         val turns = mutableListOf<Pair<Double, Boolean>>()
@@ -120,32 +119,52 @@ class ControllerTest {
         var t = t0
         while (t < t1) {
             r.now = t
-            val (turn, tip) = pose(t) // in calibration units
-            c.update(Signals(t, true, yaw = turn * cal.yawRight, pitch = cal.pitch0 + tip * (cal.pitchDown - cal.pitch0)), r)
+            val (turn, tip) = pose(t) // degrees from normal: + = right / down
+            // On the phone, turning right raises yaw and tipping down lowers pitch.
+            c.update(Signals(t, true, yaw = 3f + turn, pitch = 10f - tip), r)
             t += 0.05
         }
     }
 
     @Test fun headTipScrollsAndSmallMovesDoNot() {
-        val c = Controller(cal, Tuning(mode = Mode.HEAD)); val r = Recorder()
-        runHead(c, r, 0.0, 5.0) { t -> 0.1f * sin(t * 3).toFloat() to 0.2f * sin(t * 2).toFloat() }
+        // Head mode needs no calibration.
+        val c = Controller(null, Tuning(mode = Mode.HEAD)); val r = Recorder()
+        runHead(c, r, 0.0, 1.2) { 0f to 0f } // holds still while it learns the normal position
+        runHead(c, r, 1.2, 6.0) { t -> 2f * sin(t * 3).toFloat() to 3f * sin(t * 2).toFloat() }
         assertTrue(r.scrolls.none { it.second != 0f })
         assertEquals(0, r.turns.size)
-        runHead(c, r, 5.0, 8.0) { 0f to 1.0f }
+        runHead(c, r, 6.0, 8.0) { 0f to 13f }
         assertTrue("scrolls down", r.speed > 0.3f)
         runHead(c, r, 8.0, 9.0) { 0f to 0f }
         assertEquals(0f, r.speed)
-        runHead(c, r, 9.0, 11.0) { 0f to -1.0f }
+        runHead(c, r, 9.0, 11.0) { 0f to -13f }
         assertTrue("scrolls up", r.speed < -0.2f)
     }
 
     @Test fun headTurnHeldTurnsOnePage() {
-        val c = Controller(cal, Tuning(mode = Mode.HEAD)); val r = Recorder()
+        val c = Controller(null, Tuning(mode = Mode.HEAD)); val r = Recorder()
         runHead(c, r, 0.0, 2.0) { 0f to 0f }
-        runHead(c, r, 2.0, 5.0) { 1.0f to 0f }
+        runHead(c, r, 2.0, 5.0) { 15f to 0f }
         runHead(c, r, 5.0, 6.0) { 0f to 0f }
-        runHead(c, r, 6.0, 8.0) { -1.0f to 0f }
+        runHead(c, r, 6.0, 8.0) { -15f to 0f }
         assertEquals(listOf(true, false), r.turns.map { it.second })
+    }
+
+    @Test fun eyesModeWaitsForCalibration() {
+        val c = Controller(null, Tuning(mode = Mode.EYES)); val r = Recorder()
+        runEyes(c, r, 0.0, 3.0) { t -> if (t in 1.0..1.5) 1.0f else 0f }
+        assertEquals(0, r.turns.size)
+    }
+
+    @Test fun lensPhoneCalibrationsPass() {
+        // Eye values from Len's four calibration runs on the Xiaomi (middle, right, middle, left).
+        val runs = listOf(
+            floatArrayOf(0.126f, 0.233f, 0.121f, 0.053f),
+            floatArrayOf(0.136f, 0.205f, 0.138f, 0.037f),
+            floatArrayOf(0.239f, 0.351f, 0.227f, 0.060f),
+            floatArrayOf(0.009f, 0.145f, 0.027f, -0.092f),
+        )
+        for (v in runs) assertEquals(null, Calibration((v[0] + v[2]) / 2, v[1], v[3]).problem())
     }
 
     @Test fun calibrationChecks() {

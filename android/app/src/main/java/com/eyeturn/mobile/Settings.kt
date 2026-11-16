@@ -42,7 +42,7 @@ class Settings(context: Context) {
         get() {
             if (!prefs.contains("cal_eyeX0")) return null
             fun f(k: String) = prefs.getFloat("cal_$k", 0f)
-            return Calibration(f("eyeX0"), f("eyeRight"), f("eyeLeft"), f("yaw0"), f("yawRight"), f("pitch0"), f("pitchDown"))
+            return Calibration(f("eyeX0"), f("eyeRight"), f("eyeLeft"))
         }
         set(c) {
             val e = prefs.edit()
@@ -50,8 +50,6 @@ class Settings(context: Context) {
                 listOf("eyeX0", "eyeRight", "eyeLeft", "yaw0", "yawRight", "pitch0", "pitchDown").forEach { e.remove("cal_$it") }
             } else {
                 e.putFloat("cal_eyeX0", c.eyeX0).putFloat("cal_eyeRight", c.eyeRight).putFloat("cal_eyeLeft", c.eyeLeft)
-                    .putFloat("cal_yaw0", c.yaw0).putFloat("cal_yawRight", c.yawRight)
-                    .putFloat("cal_pitch0", c.pitch0).putFloat("cal_pitchDown", c.pitchDown)
             }
             e.apply()
             Diag.log("calibration saved: $c")

@@ -130,21 +130,23 @@ class GlanceControl {
 /**
  * Head control, ported from EyeTurn desktop (head.py, HeadScroller): tip your
  * head down to scroll down, up to scroll up, faster the further you tip. Turn
- * your head right and hold it = next page, left = previous. Small movements
- * stay inside the dead zone, and the normal position slowly follows you there.
+ * your head right and hold it = next page, left = previous. Like on the PC it
+ * needs no calibration: it learns how you normally hold your head (hold still
+ * for a second) and measures from there in degrees. Small movements stay
+ * inside the dead zone, and the normal position slowly follows you there.
  */
 class HeadControl {
-    // Normalised units: 1.0 = the tip / turn done during calibration.
-    val deadZone = 0.4f
-    val fullTilt = 1.3f
+    // Degrees from your normal head position (the PC version's values).
+    val deadZone = 4f        // tipping less than this does nothing
+    val fullTilt = 13f       // full speed from this much tip
     val exponent = 1.5f
     val maxSpeed = 1.2f      // screens per second, scrolling down
     val upMaxSpeed = 0.9f
     val accel = 2.0f         // screens/s²
-    val turnAt = 0.75f
-    val turnRearm = 0.35f
-    val turnHoldMs = 400.0
-    val smoothS = 0.1
+    val turnAt = 11f         // turn the head this far...
+    val turnHoldMs = 350.0   // ...for this long to turn one page
+    val turnRearm = 6f       // then back within this before the next turn
+    val smoothS = 0.12
     val learnS = 1.0
     val adaptS = 30.0
 
@@ -166,7 +168,7 @@ class HeadControl {
 
     fun reset() { speed = 0f; lastT = null; haveYaw = false; turnSide = 0; turnArmed = true }
 
-    fun update(s: Signals, cal: Calibration, tuning: Tuning, actions: Actions): Status {
+    fun update(s: Signals, tuning: Tuning, actions: Actions): Status {
         val dt = lastT?.let { min(s.t - it, 0.1) } ?: 0.0
         lastT = s.t
         if (!haveYaw || dt == 0.0) {
@@ -188,8 +190,10 @@ class HeadControl {
             neutralPitch = median(learning.map { it[1] })
             learning.clear(); learnT = null
         }
-        val turn = cal.turn(yaw, neutralYaw!!)
-        val tip = cal.tip(pitch, neutralPitch)
+        // Signs as measured on the phone (camera picture mirrored like a selfie):
+        // turning right raises yaw, tipping down lowers pitch (as on the PC, tilt_sign -1).
+        val turn = yaw - neutralYaw!!
+        val tip = -(pitch - neutralPitch)
         var event: String? = null
 
         // Turning: hold the head turned past turnAt for turnHoldMs.
@@ -238,7 +242,7 @@ class HeadControl {
             }
             else -> { text = "Tip to scroll, turn to change page"; progress = 0f }
         }
-        return Status(true, text, progress, turn = turn, tip = tip, event = event)
+        return Status(true, text, progress, turn = turn / turnAt, tip = tip / fullTilt, event = event)
     }
 
     private fun median(v: List<Float>): Float {
@@ -263,7 +267,6 @@ class Controller(var calibration: Calibration?, var tuning: Tuning) {
     }
 
     fun update(s: Signals, actions: Actions): Status {
-        val cal = calibration ?: return stop(actions, Status(s.face, "Calibrate first"))
         if (tuning.mode != lastMode) {
             lastMode = tuning.mode
             glance.reset(); head.recenter()
@@ -276,6 +279,7 @@ class Controller(var calibration: Calibration?, var tuning: Tuning) {
         val tracking = ScrollTracker(actions)
         val st = when (tuning.mode) {
             Mode.EYES -> {
+                val cal = calibration ?: return stop(actions, Status(s.face, "Calibrate first (Eyes mode needs it)"))
                 glance.glanceAt = 0.85f - 0.45f * tuning.glanceSensitivity
                 // Eyes look odd while blinking: keep the last value through a blink.
                 if (s.blink > 0.55f) lastBlink = s.t
@@ -287,7 +291,7 @@ class Controller(var calibration: Calibration?, var tuning: Tuning) {
                 }
                 glance.update(g, s.t, tuning, tracking)
             }
-            Mode.HEAD -> head.update(s, cal, tuning, tracking)
+            Mode.HEAD -> head.update(s, tuning, tracking)
         }
         scrolling = tracking.speed?.let { it != 0f } ?: scrolling
         return st

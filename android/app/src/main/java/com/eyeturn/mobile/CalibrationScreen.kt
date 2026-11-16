@@ -43,16 +43,14 @@ private val STEPS = listOf(
     Step("Keep your head still and glance past the RIGHT edge of the phone. Look back when you hear the beep.", "→"),
     Step("Look at the middle again."),
     Step("Keep your head still and glance past the LEFT edge of the phone. Look back when you hear the beep.", "←"),
-    Step("Look at the middle and tip your head DOWN a little, like a small nod. Hold it until the beep.", "↓"),
-    Step("Keep looking at the screen and turn your head a little to the RIGHT. Hold it until the beep.", "↻"),
 )
 private const val MOVE_MS = 1500L   // time to get into position
 private const val RECORD_MS = 1500L // then this long is measured
 
 /**
- * About 20 seconds: middle, glance right, middle, glance left, tip head down,
- * turn head right. Learns which way is which for this phone and face, and how
- * big a deliberate glance or head move is, so normal reading stays below it.
+ * For Eyes mode only, about 12 seconds: middle, glance right, middle, glance
+ * left. Uses only the eyes. Learns which way is which for this phone and face,
+ * and how big a deliberate glance is, so normal reading stays below it.
  */
 @Composable
 fun CalibrationScreen(settings: Settings, onDone: () -> Unit) {
@@ -74,7 +72,7 @@ fun CalibrationScreen(settings: Settings, onDone: () -> Unit) {
         when (phase) {
             "intro" -> {
                 Text("Hold the phone the way you do when reading, with your face in front of the front camera. " +
-                    "This takes about 20 seconds. You'll hear a beep at the end of each step.", fontSize = 17.sp)
+                    "This takes about 12 seconds and only uses your eyes. You'll hear a beep at the end of each step.", fontSize = 17.sp)
                 Text(if (signals.face) "✓ I can see your face" else "Looking for your face…",
                     fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 CameraCheck()
@@ -111,10 +109,6 @@ fun CalibrationScreen(settings: Settings, onDone: () -> Unit) {
                             eyeX0 = (results[0][0] + results[2][0]) / 2,
                             eyeRight = results[1][0],
                             eyeLeft = results[3][0],
-                            yaw0 = (results[0][1] + results[2][1]) / 2,
-                            yawRight = results[5][1],
-                            pitch0 = (results[0][2] + results[2][2]) / 2,
-                            pitchDown = results[4][2],
                         )
                         failed = c.problem()
                         if (failed == null) settings.calibration = c

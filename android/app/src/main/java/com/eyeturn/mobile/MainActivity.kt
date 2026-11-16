@@ -121,7 +121,7 @@ class MainActivity : ComponentActivity() {
             Text("EyeTurn", fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Text("Turns pages and scrolls in any reading app when you glance past the edge of the screen or tip your head.")
 
-            if (!camera || !notify || !a11y || !calibrated) {
+            if (!camera || !notify || !a11y || (!calibrated && mode == Mode.EYES)) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("Set up", fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -144,7 +144,9 @@ class MainActivity : ComponentActivity() {
                                 startActivity(Intent(SysSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
                             }) { Text("Open App info") }
                         }
-                        SetupRow("4. Calibrate (about 20 seconds)", calibrated, enabled = camera, action = "Start") { onCalibrate() }
+                        if (mode == Mode.EYES) {
+                            SetupRow("4. Calibrate your eyes (about 12 seconds, only for Eyes mode)", calibrated, enabled = camera, action = "Start") { onCalibrate() }
+                        }
                     }
                 }
             }
@@ -159,7 +161,7 @@ class MainActivity : ComponentActivity() {
                             Spacer(Modifier.width(8.dp))
                         }
                         Button(
-                            enabled = running || (camera && calibrated),
+                            enabled = running || (camera && (calibrated || mode == Mode.HEAD)),
                             onClick = { if (running) TrackingService.stop(this@MainActivity) else TrackingService.start(this@MainActivity) },
                         ) { Text(if (running) "Stop" else "Start") }
                     }
@@ -175,7 +177,7 @@ class MainActivity : ComponentActivity() {
                             "Now open your book or PDF. The dot at the top right shows EyeTurn sees you (green). Tap it to pause; hold it to come back here.",
                             fontSize = 13.sp,
                         )
-                    } else if (camera && calibrated) {
+                    } else if (camera && (calibrated || mode == Mode.HEAD)) {
                         Text("Press Start, then open your reading app.", fontSize = 13.sp)
                     }
                 }
@@ -193,7 +195,7 @@ class MainActivity : ComponentActivity() {
                             "Glance past the right edge of the phone for the next page, the left edge for the previous one. " +
                                 "Keep looking past the edge to keep scrolling."
                         else
-                            "Tip your head down to scroll down, up to scroll up. Turn your head right and hold it for the next page, left for the previous one.",
+                            "Tip your head down to scroll down, up to scroll up. Turn your head right and hold it for the next page, left for the previous one. No calibration needed: when you press Start, hold still for a second while it learns how you hold your head.",
                         fontSize = 13.sp,
                     )
                     if (mode == Mode.HEAD && running) {
@@ -226,7 +228,7 @@ class MainActivity : ComponentActivity() {
                         Text("Show the status dot", Modifier.weight(1f))
                         Switch(showDot, { showDot = it; settings.showDot = it })
                     }
-                    if (calibrated) OutlinedButton(enabled = camera, onClick = onCalibrate) { Text("Calibrate again") }
+                    if (mode == Mode.EYES && calibrated) OutlinedButton(enabled = camera, onClick = onCalibrate) { Text("Calibrate eyes again") }
                 }
             }
             Card(Modifier.fillMaxWidth()) {
