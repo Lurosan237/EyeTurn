@@ -67,6 +67,7 @@ class GestureService : AccessibilityService(), Actions {
         touchSlop = ViewConfiguration.get(this).scaledTouchSlop
         reloadSettings()
         instance = this
+        Diag.log("accessibility service connected")
         main.post(watchForeground)
         refreshDot()
     }

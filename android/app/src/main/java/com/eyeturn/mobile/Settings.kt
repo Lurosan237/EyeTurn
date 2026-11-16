@@ -54,6 +54,7 @@ class Settings(context: Context) {
                     .putFloat("cal_pitch0", c.pitch0).putFloat("cal_pitchDown", c.pitchDown)
             }
             e.apply()
+            Diag.log("calibration saved: $c")
         }
 
     fun tuning() = Tuning(mode = mode, glanceSensitivity = glanceSensitivity, holdScroll = holdScroll, speed = speed)

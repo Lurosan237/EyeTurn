@@ -41,6 +41,7 @@ class TrackingService : LifecycleService() {
             )
         } catch (e: Exception) {
             Log.e("EyeTurn", "startForeground", e)
+            Diag.log("could not start foreground service: $e")
             Toast.makeText(this, "EyeTurn couldn't start the camera: open the app and press Start.", Toast.LENGTH_LONG).show()
             stopSelf()
             return START_NOT_STICKY

@@ -229,6 +229,14 @@ class MainActivity : ComponentActivity() {
                     if (calibrated) OutlinedButton(enabled = camera, onClick = onCalibrate) { Text("Calibrate again") }
                 }
             }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Camera check", fontWeight = FontWeight.Bold)
+                    if (running) CameraCheck()
+                    else Text("Press Start to see what the camera sees. If something doesn't work, press Share log and send it to me.", fontSize = 13.sp)
+                    ShareLogButton()
+                }
+            }
             Spacer(Modifier.height(24.dp))
         }
     }

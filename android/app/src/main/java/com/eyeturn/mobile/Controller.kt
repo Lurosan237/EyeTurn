@@ -278,7 +278,7 @@ class Controller(var calibration: Calibration?, var tuning: Tuning) {
             Mode.EYES -> {
                 glance.glanceAt = 0.85f - 0.45f * tuning.glanceSensitivity
                 // Eyes look odd while blinking: keep the last value through a blink.
-                if (s.blink > 0.45f) lastBlink = s.t
+                if (s.blink > 0.55f) lastBlink = s.t
                 if (s.t - lastBlink > 0.12) {
                     val raw = cal.glance(s.eyeX)
                     val prev = gT

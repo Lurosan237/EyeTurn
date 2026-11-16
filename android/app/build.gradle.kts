@@ -23,8 +23,8 @@ android {
         applicationId = "com.eyeturn.mobile"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
         // MediaPipe only ships phone (ARM) libraries.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
@@ -51,7 +51,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     androidResources { noCompress += "task" }
     // Compressed native libraries keep the APK small enough to pass around easily.
     packaging {

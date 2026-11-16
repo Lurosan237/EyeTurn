@@ -77,6 +77,7 @@ fun CalibrationScreen(settings: Settings, onDone: () -> Unit) {
                     "This takes about 20 seconds. You'll hear a beep at the end of each step.", fontSize = 17.sp)
                 Text(if (signals.face) "✓ I can see your face" else "Looking for your face…",
                     fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                CameraCheck()
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(enabled = signals.face, onClick = { phase = "run"; attempt++ }) { Text("Begin") }
                     OutlinedButton(onClick = onDone) { Text("Cancel") }
@@ -88,17 +89,20 @@ fun CalibrationScreen(settings: Settings, onDone: () -> Unit) {
                     val beeper = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80) }.getOrNull()
                     val results = ArrayList<FloatArray>() // per step: eyeX, yaw, pitch medians
                     var failed: String? = null
+                    Diag.log("calibration: start")
                     for (i in STEPS.indices) {
                         stepIdx = i
-                        var got: FloatArray? = null
+                        var got: Recorded? = null
                         for (tryNo in 0 until 3) {
                             got = record { stepProgress = it }
-                            if (got != null) break
+                            Diag.log("calibration step ${i + 1} try ${tryNo + 1}: ${got.summary()}")
+                            if (got.values != null) break
                         }
                         beeper?.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
                         buzz(ctx)
-                        if (got == null) { failed = "I lost sight of your face. Keep your face in front of the camera and try again."; break }
-                        results.add(got)
+                        val values = got?.values
+                        if (values == null) { failed = got?.problem() ?: "Something went wrong."; break }
+                        results.add(values)
                     }
                     beeper?.release()
                     Engine.calibrating = false
@@ -115,6 +119,7 @@ fun CalibrationScreen(settings: Settings, onDone: () -> Unit) {
                         failed = c.problem()
                         if (failed == null) settings.calibration = c
                     }
+                    if (failed != null) Diag.log("calibration failed: $failed")
                     message = failed ?: ""
                     phase = if (failed == null) "done" else "failed"
                 }
@@ -123,6 +128,7 @@ fun CalibrationScreen(settings: Settings, onDone: () -> Unit) {
                 Text(step.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 LinearProgressIndicator(progress = { stepProgress }, modifier = Modifier.fillMaxWidth())
                 if (!signals.face) Text("I can't see your face", fontSize = 16.sp)
+                CameraThumb(small = true)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                     val align = when (step.arrow) {
                         "→" -> Alignment.CenterEnd
@@ -140,37 +146,60 @@ fun CalibrationScreen(settings: Settings, onDone: () -> Unit) {
             else -> {
                 Text("That didn't work", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(message, fontSize = 17.sp, textAlign = TextAlign.Start)
+                CameraCheck()
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { phase = "run"; stepIdx = 0; attempt++ }) { Text("Try again") }
                     OutlinedButton(onClick = onDone) { Text("Back") }
                 }
+                ShareLogButton()
             }
         }
     }
 }
 
-/** Waits MOVE_MS, then returns the medians of (eyeX, yaw, pitch) over RECORD_MS, or null if the face was missing. */
-private suspend fun record(progress: (Float) -> Unit): FloatArray? {
+/** One step's recording: the medians of (eyeX, yaw, pitch), or null, plus counts to explain a failure. */
+private class Recorded(val values: FloatArray?, val frames: Int, val faces: Int, val closed: Int) {
+    fun summary() = "frames=$frames face=$faces eyesClosed=$closed" +
+        (values?.let { " eyeX=%.3f yaw=%.1f pitch=%.1f".format(it[0], it[1], it[2]) } ?: " -> not enough")
+
+    fun problem(): String = when {
+        frames == 0 -> "The camera stopped sending pictures. Close other apps that use the camera and try again."
+        faces * 2 < frames -> "I lost sight of your face (seen in $faces of $frames pictures). Check the picture below: " +
+            "your whole face should be in it, the right way up. Hold the phone a bit further away and try again."
+        else -> "Your eyes looked closed in most pictures. Hold the phone a little higher, so you look straight at it, and try again."
+    }
+}
+
+/** Waits MOVE_MS, then records over RECORD_MS. Needs a few pictures with the face and open eyes. */
+private suspend fun record(progress: (Float) -> Unit): Recorded {
     val total = MOVE_MS + RECORD_MS
     val start = System.currentTimeMillis()
     val eye = ArrayList<Float>()
     val yaw = ArrayList<Float>()
     val pitch = ArrayList<Float>()
+    var frames = 0
+    var faces = 0
+    var closed = 0
     var lastT = -1.0
     while (true) {
         val el = System.currentTimeMillis() - start
         if (el >= total) break
         progress(el.toFloat() / total)
         val s = Engine.signals.value
-        if (el >= MOVE_MS && s.t != lastT && s.face && s.blink < 0.4f) {
-            eye.add(s.eyeX); yaw.add(s.yaw); pitch.add(s.pitch)
+        if (el >= MOVE_MS && s.t != lastT) {
+            frames++
+            if (s.face) {
+                faces++
+                // Only both eyes properly shut is a blink (looking down at a phone half-closes the lids).
+                if (s.blink > 0.6f) closed++ else { eye.add(s.eyeX); yaw.add(s.yaw); pitch.add(s.pitch) }
+            }
         }
         lastT = s.t
         delay(25)
     }
     progress(1f)
-    if (eye.size < 5) return null
-    return floatArrayOf(median(eye), median(yaw), median(pitch))
+    val values = if (eye.size >= 3) floatArrayOf(median(eye), median(yaw), median(pitch)) else null
+    return Recorded(values, frames, faces, closed)
 }
 
 private fun median(v: List<Float>): Float {

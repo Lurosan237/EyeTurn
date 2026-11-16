@@ -92,6 +92,13 @@ class ControllerTest {
         assertEquals(0, r.turns.size)
     }
 
+    @Test fun halfClosedEyesStillGlance() {
+        // Looking down at a phone, both eyelid scores sit around 0.4-0.5 all the time.
+        val c = eyes(); val r = Recorder()
+        runEyes(c, r, 0.0, 4.0, blink = { 0.5f }) { t -> if (t in 1.0..1.5) 1.0f else 0f }
+        assertEquals(1, r.turns.size)
+    }
+
     @Test fun lowSensitivityNeedsABiggerGlance() {
         val c = Controller(cal, Tuning(mode = Mode.EYES, glanceSensitivity = 0f)); val r = Recorder()
         runEyes(c, r, 0.0, 4.0) { t -> if (t in 1.0..1.5) 0.7f else 0f }

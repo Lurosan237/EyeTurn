@@ -33,6 +33,7 @@ object Engine {
 
     fun init(context: Context) {
         if (settings != null) return
+        Diag.init(context)
         val s = Settings(context)
         settings = s
         controller = Controller(s.calibration, s.tuning())
@@ -51,6 +52,7 @@ object Engine {
 
     fun setRunning(on: Boolean) {
         _running.value = on
+        Diag.log(if (on) "tracking started (mode ${settings?.mode}, calibrated ${settings?.calibration != null}, accessibility ${GestureService.instance != null})" else "tracking stopped")
         if (!on) {
             GestureService.instance?.setScroll(0f)
             _status.value = Status(text = "Stopped")
@@ -89,7 +91,7 @@ object Engine {
                 else -> c.update(s, gestures)
             }
         }
-        if (st.event != null) lastEvent = st.event
+        if (st.event != null) { lastEvent = st.event; Diag.log("turn: ${st.event}") }
         val shown = if (gestures?.eyeTurnOnScreen() == true && !_paused.value && !calibrating)
             st.copy(text = st.text + " (switch to your reading app to use it)") else st
         _status.value = shown
