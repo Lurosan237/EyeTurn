@@ -48,6 +48,12 @@ object Diag {
             }
         }
         log("--- app start: EyeTurn ${BuildConfig.VERSION_NAME} on ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        // Write any crash into the log before Android ends the app, so Share log shows it.
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, e ->
+            runCatching { log("CRASH in ${thread.name}: ${android.util.Log.getStackTraceString(e).take(3000)}") }
+            previous?.uncaughtException(thread, e)
+        }
     }
 
     @Synchronized

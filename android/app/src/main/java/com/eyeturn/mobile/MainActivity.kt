@@ -89,7 +89,10 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refresh++
+        val state = "accessibility switch ${if (accessibilityOn(this)) "on" else "off"}, service ${if (GestureService.instance != null) "running" else "not running"}"
+        if (state != lastA11yState) { lastA11yState = state; Diag.log(state) }
     }
+    private var lastA11yState = ""
 
     private fun hasCamera() =
         ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -104,7 +107,11 @@ class MainActivity : ComponentActivity() {
         val status by Engine.status.collectAsState()
         val camera = hasCamera()
         val notify = hasNotify()
-        val a11y = accessibilityOn(this)
+        val a11ySetting = accessibilityOn(this)
+        // The switch can be on while Android has stopped the service (Xiaomi does this to
+        // apps without Autostart). Only a connected service can scroll other apps.
+        val a11yStuck = a11ySetting && GestureService.instance == null
+        val a11y = a11ySetting && !a11yStuck
         val calibrated = settings.calibration != null
         var mode by remember { mutableStateOf(settings.mode) }
         var style by remember { mutableStateOf(settings.turnStyle) }
@@ -134,7 +141,23 @@ class MainActivity : ComponentActivity() {
                         SetupRow("3. Let EyeTurn scroll other apps: Accessibility > EyeTurn > On", a11y) {
                             startActivity(Intent(SysSettings.ACTION_ACCESSIBILITY_SETTINGS))
                         }
-                        if (!a11y) {
+                        if (a11yStuck) {
+                            Text(
+                                "The Accessibility switch is on, but Android has stopped EyeTurn's service " +
+                                    "(it says \"Not working\"). Xiaomi phones do this to apps that may not start by themselves. To fix it:\n" +
+                                    "1. Autostart: turn it on for EyeTurn.\n" +
+                                    "2. Battery: choose \"No restrictions\".\n" +
+                                    "3. Accessibility: turn EyeTurn off, then on again.",
+                                fontSize = 14.sp,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { openAutostart() }) { Text("1. Autostart") }
+                                OutlinedButton(onClick = { askNoBatteryLimits() }) { Text("2. Battery") }
+                            }
+                            OutlinedButton(onClick = { startActivity(Intent(SysSettings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
+                                Text("3. Accessibility")
+                            }
+                        } else if (!a11y) {
                             Text(
                                 "If Android says the setting is restricted: open App info below, tap the ⋮ menu at the top right, " +
                                     "choose \"Allow restricted settings\", then try step 3 again.",
@@ -240,6 +263,28 @@ class MainActivity : ComponentActivity() {
                 }
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    /** Xiaomi's Autostart list; on other phones (or if it moved) the app's info page. */
+    private fun openAutostart() {
+        Diag.log("opening autostart settings")
+        val miui = Intent().setClassName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+        try {
+            startActivity(miui)
+        } catch (e: Exception) {
+            startActivity(Intent(SysSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        }
+    }
+
+    /** Asks Android to stop limiting EyeTurn in the background (battery saver). */
+    @android.annotation.SuppressLint("BatteryLife")
+    private fun askNoBatteryLimits() {
+        Diag.log("asking for no battery limits")
+        try {
+            startActivity(Intent(SysSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+        } catch (e: Exception) {
+            startActivity(Intent(SysSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }
     }
 

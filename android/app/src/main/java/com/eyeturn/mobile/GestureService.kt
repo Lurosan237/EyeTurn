@@ -73,6 +73,7 @@ class GestureService : AccessibilityService(), Actions {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
+        Diag.log("accessibility service unbound (switched off or stopped by Android)")
         instance = null
         main.removeCallbacksAndMessages(null)
         removeDot()
@@ -80,13 +81,14 @@ class GestureService : AccessibilityService(), Actions {
     }
 
     override fun onDestroy() {
+        Diag.log("accessibility service destroyed")
         instance = null
         removeDot()
         super.onDestroy()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
-    override fun onInterrupt() {}
+    override fun onInterrupt() { Diag.log("accessibility service interrupted") }
 
     fun reloadSettings() {
         turnStyle = settings.turnStyle
