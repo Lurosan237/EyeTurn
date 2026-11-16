@@ -36,7 +36,7 @@ class FaceTracker(
     private val onSignals: (Signals) -> Unit,
     private val onError: (String) -> Unit,
 ) {
-    private var landmarker: FaceLandmarker? = null
+    @Volatile private var landmarker: FaceLandmarker? = null
     private var executor: ExecutorService? = null
     private var provider: ProcessCameraProvider? = null
     private var lastFrameMs = 0L
@@ -121,10 +121,23 @@ class FaceTracker(
     fun stop() {
         runCatching { provider?.unbindAll() }
         provider = null
-        executor?.shutdown()
+        val lm = landmarker
+        landmarker = null // analyze() skips frames from now on
+        val exec = executor
         executor = null
-        runCatching { landmarker?.close() }
-        landmarker = null
+        if (exec == null) {
+            runCatching { lm?.close() }
+            return
+        }
+        // Close the face model on the camera thread, after any frame still being sent to it:
+        // closing it while a frame is in flight crashed the app when you pressed Stop.
+        runCatching {
+            exec.execute {
+                runCatching { lm?.close() }
+                Diag.log("face model closed")
+            }
+        }
+        exec.shutdown()
     }
 
     private fun analyze(proxy: ImageProxy) {
