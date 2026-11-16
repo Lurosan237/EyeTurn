@@ -6,6 +6,9 @@ just where you look. It **turns the page when you finish it**, or
 ordinary key presses and mouse-wheel events, so it works with any viewer:
 Acrobat, SumatraPDF, Edge/Chrome PDF viewer, Word, Kindle for PC, and so on.
 
+There is also an **Android version** in [`android/`](android/README.md): glance past
+the edge of the phone (or tip your head) to turn pages in any reading app.
+
 ## How it works
 
 1. **Tracking** (`eyeturn/tracker.py`): MediaPipe Face Landmarker finds 478
