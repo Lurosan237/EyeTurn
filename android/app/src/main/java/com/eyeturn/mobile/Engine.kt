@@ -44,6 +44,7 @@ object Engine {
         val s = settings ?: return
         val c = controller ?: return
         synchronized(this) {
+            if (c.tuning.mode != s.mode) Diag.log("mode: ${s.mode}")
             c.calibration = s.calibration
             c.tuning = s.tuning()
         }
@@ -58,6 +59,7 @@ object Engine {
             _status.value = Status(text = "Stopped")
         } else {
             synchronized(this) { controller?.reset() }
+            _status.value = Status(text = "Starting the camera…")
         }
         GestureService.instance?.refreshDot()
     }
