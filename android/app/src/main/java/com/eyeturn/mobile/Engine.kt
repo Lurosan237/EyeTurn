@@ -86,10 +86,9 @@ object Engine {
             st = when {
                 _paused.value -> Status(s.face, "Paused (tap the dot to resume)")
                 calibrating -> Status(s.face, "Calibrating")
-                gestures == null -> {
-                    c.update(s, NoActions)
-                    Status(s.face, "Turn on EyeTurn in Accessibility settings")
-                }
+                // Without the accessibility switch nothing can scroll, but keep the
+                // live readings so you can still see EyeTurn follow you.
+                gestures == null -> c.update(s, NoActions).copy(text = "Turn on EyeTurn in Accessibility settings")
                 else -> c.update(s, gestures)
             }
         }
